@@ -92,13 +92,61 @@ class BGW210:
             pass
 
     class Voice:
-        pass
+        class Status:
+            pass
+
+        class LineDetails:
+            pass
+
+        class CallStatistics:
+            pass
 
     class Firewall:
-        pass
+        class Status:
+            pass
+
+        class PacketFilter:
+            pass
+
+        class NATGaming:
+            pass
+
+        class PublicSubnetHosts:
+            pass
+
+        class IPPassthrough:
+            pass
+
+        class FirewallAdvanced:
+            pass
+
+        class SecurityOptions:
+            pass
 
     class Diagnostics:
-        pass
+        class Troubleshoot:
+            pass
+
+        class SpeedTest:
+            pass
+
+        class Logs:
+            pass
+
+        class Update:
+            pass
+
+        class Resets:
+            pass
+
+        class Syslog:
+            pass
+
+        class EventNotification:
+            pass
+
+        class NATTable:
+            pass
 
     def login(self) -> Response:
         response = self.session.get(url=f'{Config.BGW210.remote_url}', verify=False)
