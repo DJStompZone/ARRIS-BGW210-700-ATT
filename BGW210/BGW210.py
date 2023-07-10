@@ -1,10 +1,9 @@
 import time
-
 import urllib3
 from bs4 import BeautifulSoup
 from requests import Session, Response
 from Config import Config
-from typing import List, Literal
+from typing import List, Literal, Tuple
 from hashlib import md5
 from urllib3.exceptions import InsecureRequestWarning
 
@@ -12,8 +11,38 @@ urllib3.disable_warnings(InsecureRequestWarning)
 
 
 class BGW210:
-    def __init__(self):
+    def __init__(self, ip: str = None, port: int = None, username: str = None, password: str = None) -> None:
         self.session = Session()
+        if not all([ip, port, username, password]):
+            url, username, password = self._Tools.set_credentials()
+        url = f'{self._Tools.resolve_secure}{ip}:{port}'
+        self.url = url
+        self.username = username
+        self.password = password
+        self.login()
+
+    class _Tools:
+        @classmethod
+        def resolve_ip(cls) -> str:
+            pass
+
+        @classmethod
+        def resolve_secure(cls) -> str:
+            if local:
+                return 'http://'
+            else:
+                return 'https://'
+        @classmethod
+        def set_credentials(cls) -> Tuple[str, str, str]:
+            if local:
+                credentials = Config.BGW210.Local
+            else:
+                credentials = Config.BGW210.Remote
+            return credentials.url, credentials.username, credentials.password
+
+        def login_required(self):
+            pass
+        # if html_body.find('title').text == 'Login':
 
     class Device:
         class DeviceList:
@@ -149,14 +178,16 @@ class BGW210:
             pass
 
     def login(self) -> Response:
-        response = self.session.get(url=f'{Config.BGW210.remote_url}', verify=False)
-        html_body = BeautifulSoup(response.content)
-        nonce = html_body.find('nonce')
-        data = {'nonce': html_body.get('nonce'),
-                'password': '*' * len(Config.BGW210.Credentials.device_access_code),
-                'hashpassword': md5(Config.BGW210.Credentials.device_access_code + html_body.get('nonce')),
+        response = self.session.get(url=f'{self.ip}', verify=False)
+        html_body = BeautifulSoup(response.content, features="html.parser")
+        nonce = html_body.find('input').attrs.get('value')
+        data = {'nonce': nonce,
+                'username': self.username,
+                'password': ('*' * len(self.password)).encode('utf-8'),
+                'hashpassword': md5((self.password + nonce).encode('utf-8')).hexdigest(),
                 'Continue': 'Continue'}
-        self.session.post(url=f'{Config.BGW210.base_url}/cgi-bin/login.ha')
+        response = self.session.post(url=f'{self.ip}/cgi-bin/login.ha', data=data)
+        return response
 
     def logout(self) -> Response:
         pass
