@@ -71,8 +71,10 @@ class BGW210:
                 cache = {}
                 rows = Tools.Parser.get_table_data(self.bgw210.current_page)
                 for row in rows:
-                    row = row.text.split('\n')[0:]
-                    if row[0] == 'MAC Address':
+                    row = [r for r in row.text.split('\n') if r.strip()]
+                    if len(row) == 0:
+                        pass
+                    elif row[0] == 'MAC Address':
                         table[row[1]] = {row[0]: row[1]}
                         mac_address = row[1]
                     elif row[0] == 'IPv4 Address / Name':
@@ -82,26 +84,29 @@ class BGW210:
                         if connection_type:
                             pass
                         elif row[1][0:5] == 'Wi-Fi':
-                            row[2] = row[1].split('Type: ')
-                            wifi = row[2][0].split('\xa0 ')[1]
-                            type_, name = row[2][1].split('Name: ')
+                            row_ = row[1].split('Type: ')
+                            wifi = row_[0].split('\xa0 ')[1]
+                            type_, name = row_[1].split('Name: ')
                             connection_type = {'Connection Type': {'Wi-Fi': wifi, 'type': type_, 'name': name}}
                         else:
                             connection_type = {'Connection Type': row[1]}
                         cache[row[1]] = connection_type
                         table[mac_address].update(connection_type)
-                    elif len(row) == 3 and row[2] == '':
+                    else:
                         table[mac_address].update({row[0]: row[1]})
                 return table
 
         class SystemInformation(Module):
 
-            def get_info(self):
+            def get_info(self) -> dict:
                 url = f'{self.bgw210.url}/cgi-bin//sysinfo.ha'
                 self.bgw210.current_page = self.bgw210.session.get(url)
                 table = {}
-                cache = {}
                 rows = Tools.Parser.get_table_data(self.bgw210.current_page)
+                for row in rows:
+                    row = [r for r in row.text.split('\n') if r.strip()]
+                    table[row[0]] = row[1]
+                return table
 
         class AccessCode(Module):
 
@@ -116,11 +121,17 @@ class BGW210:
 
         class RestartDevice(Module):
 
-            def restart(self):
-                pass
+            def _navigate(self, method: str) -> None:
+                url = f'{self.bgw210.url}/cgi-bin//sysinfo.ha'
+                self.bgw210.current_page = self.bgw210.session.get(url)
+                data = {'nonce': Tools.Parser.get_nonce(self.bgw210.current_page), method: method}
+                self.bgw210.session.post(url=url, data=data)
 
-            def cancel(self):
-                pass
+            def restart(self) -> None:
+                self._navigate(method='Restart')
+
+            def cancel(self) -> None:
+                self._navigate(method='Cancel')
 
     class Broadband:
         def __init__(self, bgw210: BGW210):
@@ -282,4 +293,4 @@ class BGW210:
 
 
 router = BGW210()
-router.Device.DeviceList.get_devices()
+router.Device.RestartDevice.restart()
