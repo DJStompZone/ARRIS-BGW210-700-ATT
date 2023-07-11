@@ -8,7 +8,6 @@ from requests import Response, Session
 from urllib3 import disable_warnings
 from urllib3.exceptions import InsecureRequestWarning
 
-from Exceptions import CredentialsError
 from Menus import Dropdown
 from tools import Tools
 
@@ -91,6 +90,7 @@ class BGW210:
                 return self.get_devices(False)
 
             def get_devices(self, refresh: bool = True) -> dict:
+                mac_address = ''
                 if refresh:
                     url = f'{self.bgw210.url}/cgi-bin/devices.ha'
                     self.bgw210.current_page = self.bgw210.session.get(url)
@@ -168,6 +168,7 @@ class BGW210:
 
             def get_status(self) -> dict:
                 table = {}
+                columns = []
                 self.bgw210.current_page = self.bgw210.session.get(f'{self.bgw210.url}/cgi-bin/broadbandstatistics.ha')
                 rows = Tools.Parser.get_table_data(self.bgw210.current_page)
                 sections = ['Primary Broadband', 'DSL Status', 'Timed Statistics', 'Aggregated Information', 'IPv6',
@@ -368,7 +369,7 @@ class BGW210:
                 'Continue': 'Continue'}
         self.current_page = self.session.post(url=f'{self.url}/cgi-bin/login.ha', data=data)
         if BeautifulSoup(self.current_page.content, features="html.parser").find('title').text == 'Login':
-            raise CredentialsError()
+            raise Exception('CredentialsError - Bad username/password')
         return self.current_page
 
     def logout(self) -> Response:

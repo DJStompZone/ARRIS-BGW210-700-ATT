@@ -41,3 +41,22 @@ class Tools:
         def get_table_data(response: Response) -> ResultSet:
             rows = BeautifulSoup(response.content, features="html.parser").findAll('tr')
             return rows
+
+        @staticmethod
+        def get_field(response: Response, fields: list) -> dict:
+            data = {}
+            html_body = BeautifulSoup(response.content, features="html.parser")
+            for field in fields:
+                data[field] = html_body.find('input', {"name": field}).attrs.get('value')
+            return data
+
+        @classmethod
+        def parse_fields(cls, response: Response) -> dict:
+            data = {}
+            rows = cls.get_table_data(response)
+            for row in rows:
+                try:
+                    data[row.find('th').text.split('Default')[0]] = row.find('td').find('input').attrs.get('value')
+                except AttributeError:
+                    pass
+            return data
