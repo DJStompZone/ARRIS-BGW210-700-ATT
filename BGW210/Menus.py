@@ -1,7 +1,7 @@
 from typing import Literal
 
 
-class DropdownOptions:
+class Dropdown:
     ethernet = Literal[
         'Auto',
         '100M full duplex',

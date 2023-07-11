@@ -6,11 +6,10 @@ from typing import Literal
 from bs4 import BeautifulSoup
 from requests import Response, Session
 from urllib3 import disable_warnings
-from urllib.parse import urlencode
 from urllib3.exceptions import InsecureRequestWarning
 
 from Exceptions import CredentialsError
-from Menus import DropdownOptions
+from Menus import Dropdown
 from tools import Tools
 
 disable_warnings(InsecureRequestWarning)
@@ -151,8 +150,7 @@ class BGW210:
 
             def _navigate(self, method: str) -> None:
                 url = f'{self.bgw210.url}/cgi-bin/sysinfo.ha'
-                self.bgw210.current_page = self.bgw210.session.get(url)
-                data = {'nonce': Tools.Parser.get_nonce(self.bgw210.current_page), method: method}
+                data = {'nonce': Tools.Parser.get_nonce(self.bgw210.session.get(url)), method: method}
                 self.bgw210.current_page = self.bgw210.session.post(url=url, data=data)
 
             def restart(self) -> None:
@@ -215,7 +213,7 @@ class BGW210:
         class Configure(Module):
 
             def set(self, broadband_source_override: Literal['auto', 'line1', 'line2', 'dslauto', 'ethernet'] = 'auto',
-                    base_mtu: int = 1500, ipv6_mtu: int = None):
+                    base_mtu: int = 1500, ipv6_mtu: int = None) -> None:
                 url = f'{self.bgw210.url}/cgi-bin/broadbandconfig.ha'
                 data = {'nonce': Tools.Parser.get_nonce(self.bgw210.session.get(url)),
                         'source': broadband_source_override, 'MTUW': base_mtu, 'Save': 'Save'}
@@ -239,25 +237,38 @@ class BGW210:
 
         class Configure(Module):
 
-            def ethernet(self, port_1: DropdownOptions.ethernet, port_2: DropdownOptions.ethernet,
-                         port_3: DropdownOptions.ethernet,
-                         port_4: DropdownOptions.ethernet):
-                pass
-
-            def mdi_x(self, port_1: DropdownOptions.auto_on_off, port_2: DropdownOptions.auto_on_off,
-                      port_3: DropdownOptions.auto_on_off,
-                      port_4: DropdownOptions.auto_on_off):
-                pass
+            def set(self, ethernet_port_1: Dropdown.ethernet = 'auto', ethernet_port_2: Dropdown.ethernet = 'auto',
+                    ethernet_port_3: Dropdown.ethernet = 'auto', ethernet_port_4: Dropdown.ethernet = 'auto',
+                    mdi_x_port_1: Dropdown.auto_on_off = 'auto', mdi_x_port_2: Dropdown.auto_on_off = 'auto',
+                    mdi_x_port_3: Dropdown.auto_on_off = 'auto', mdi_x_port_4: Dropdown.auto_on_off = 'auto'):
+                url = f'{self.bgw210.url}/cgi-bin/etherlan.ha'
+                data = {'nonce': Tools.Parser.get_nonce(self.bgw210.session.get(url)),
+                        'enet1_port1_media': ethernet_port_1, 'enet2_port2_media': ethernet_port_2,
+                        'enet3_port3_media': ethernet_port_3, 'enet4_port4_media': ethernet_port_4,
+                        'enet1_port1_mdix': mdi_x_port_1, 'enet2_port2_mdix': mdi_x_port_2,
+                        'enet3_port3_mdix': mdi_x_port_3, 'enet4_port4_mdix': mdi_x_port_4,
+                        'Save': 'Save'}
+                self.bgw210.current_page = self.bgw210.session.post(url=url, data=data)
 
         class IPv6(Module):
 
-            def set(self, ipv6: DropdownOptions.on_off, dhcp_v6: DropdownOptions.on_off,
-                    dhcp_v6_prefix_delegation: DropdownOptions.on_off,
-                    router_advertisement_mtu: int = 1500):
-                pass
+            def set(self, ipv6: Dropdown.on_off = 'on', dhcp_v6: Dropdown.on_off = 'on',
+                    dhcp_v6_prefix_delegation: Dropdown.on_off = 'on', router_advertisement_mtu: int = None):
+                url = f'{self.bgw210.url}/cgi-bin/ip6lan.ha'
+                data = {'nonce': Tools.Parser.get_nonce(self.bgw210.session.get(url)),
+                        'ipv6lan': ipv6, 'dhcpv6': dhcp_v6, 'dhcpv6pd': dhcp_v6_prefix_delegation, 'Save': 'Save'}
+                if router_advertisement_mtu:
+                    data.update({'MTU6': router_advertisement_mtu})
+                self.bgw210.current_page = self.bgw210.session.post(url=url, data=data)
 
         class WiFi(Module):
-            pass
+            def get_settings(self) -> dict:
+                self.bgw210.current_page = self.bgw210.session.get(f'{self.bgw210.url}/cgi-bin/wconfig_unified.ha')
+                return Tools.Parser.parse_fields(self.bgw210.current_page)
+
+            def advanced_options(self) -> dict:
+                self.bgw210.current_page = self.bgw210.session.get(f'{self.bgw210.url}/cgi-bin/wconfig.ha')
+                return Tools.Parser.parse_fields(self.bgw210.current_page)
 
         class MACFiltering(Module):
             pass
@@ -365,4 +376,4 @@ class BGW210:
 
 
 router = BGW210()
-router.Broadband.Status.get_status()
+router.HomeNetwork.WiFi.advanced_options()
