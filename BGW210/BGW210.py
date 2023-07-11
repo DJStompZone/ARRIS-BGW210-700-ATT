@@ -58,7 +58,8 @@ class BGW210:
                          method: str) -> None:
                 url = f'{self.bgw210.url}/cgi-bin/home.ha'
                 data = {'nonce': Tools.Parser.get_nonce(self.bgw210.session.get(url)), method: 'Restart'}
-                self.bgw210.session.post(url=f'{self.bgw210.url}/cgi-bin/{device}.ha?{url_query}', data=data)
+                self.bgw210.current_page = self.bgw210.session.post(
+                    url=f'{self.bgw210.url}/cgi-bin/{device}.ha?{url_query}', data=data)
 
             def more_info(self) -> dict:
                 return self.bgw210.Device.SystemInformation.get_info()
@@ -149,10 +150,10 @@ class BGW210:
         class RestartDevice(Module):
 
             def _navigate(self, method: str) -> None:
-                url = f'{self.bgw210.url}/cgi-bin//sysinfo.ha'
+                url = f'{self.bgw210.url}/cgi-bin/sysinfo.ha'
                 self.bgw210.current_page = self.bgw210.session.get(url)
                 data = {'nonce': Tools.Parser.get_nonce(self.bgw210.current_page), method: method}
-                self.bgw210.session.post(url=url, data=data)
+                self.bgw210.current_page = self.bgw210.session.post(url=url, data=data)
 
             def restart(self) -> None:
                 self._navigate(method='Restart')
@@ -166,10 +167,50 @@ class BGW210:
             self.DeviceList = self.Configure(bgw210)
 
         class Status(Module):
-            pass
 
-            def get_status(self):
-                pass
+            def get_status(self) -> dict:
+                table = {}
+                self.bgw210.current_page = self.bgw210.session.get(f'{self.bgw210.url}/cgi-bin/broadbandstatistics.ha')
+                rows = Tools.Parser.get_table_data(self.bgw210.current_page)
+                sections = ['Primary Broadband', 'DSL Status', 'Timed Statistics', 'Aggregated Information', 'IPv6',
+                            'IPv4 Statistics', 'IPv6 Statistics']
+                section = sections.pop(0)
+                table[section] = {}
+                for row in rows:
+                    row = [r for r in row.text.split('\n') if r.strip()]
+                    if row == ['Line 1', 'Line 2'] or (len(row) > 0 and row[0] == '\xa015 Min'):
+                        section = sections.pop(0)
+                        table[section] = {}
+                        if row[0] == '\xa015 Min':
+                            columns = row
+                            columns[0] = '15 Min'
+                        continue
+                    if len(row) == 2:
+                        if row[0] in {'Bonded Downstream Rate', 'Status', 'Transmit Packets'}:
+                            section = sections.pop(0)
+                            table[section] = {}
+                        try:
+                            table[section][row[0]] = int(row[1].strip())
+                        except ValueError:
+                            table[section][row[0]] = row[1].strip()
+                    elif len(row) == 3:
+                        try:
+                            table[section][row[0]] = {'Line 1': int(row[1]), 'Line 2': int(row[2])}
+                        except ValueError:
+                            table[section][row[0]] = {'Line 1': row[1], 'Line 2': row[2]}
+                    elif len(row) == 5:
+                        table[section][row[0]] = {'Line 1 Downstream': float(row[1].strip()),
+                                                  'Line 1 Upstream': float(row[2].strip()),
+                                                  'Line 2 Downstream': float(row[3].strip()),
+                                                  'Line 2 Upstream': float(row[4].strip())}
+                    elif len(row) == 6:
+                        table[section][row[0]] = dict(map(lambda key, value: (key, int(value)), columns, row[1:]))
+                return table
+
+            def clear_statistics(self) -> None:
+                url = f'{self.bgw210.url}/cgi-bin/broadbandstatistics.ha'
+                data = {'nonce': Tools.Parser.get_nonce(self.bgw210.session.get(url)), 'Clear': 'Clear Statistics'}
+                self.bgw210.current_page = self.bgw210.session.post(url=url, data=data)
 
         class Configure(Module):
 
@@ -320,4 +361,4 @@ class BGW210:
 
 
 router = BGW210()
-router.Device.Status.get_status()
+router.Broadband.Status.get_status()
