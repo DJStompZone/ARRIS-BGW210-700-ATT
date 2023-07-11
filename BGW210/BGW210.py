@@ -214,10 +214,14 @@ class BGW210:
 
         class Configure(Module):
 
-            def set(self, broadband_source_override: Literal[
-                'Auto', 'DSL - Line 1', 'DSL - Line 2', 'DSL - Line 1 / Line 2', 'Ethernet'] = 'Auto',
-                    base_mtu: int = 1500, ipv6_mtu: int = 1500):
-                pass
+            def set(self, broadband_source_override: Literal['auto', 'line1', 'line2', 'dslauto', 'ethernet'] = 'auto',
+                    base_mtu: int = 1500, ipv6_mtu: int = None):
+                url = f'{self.bgw210.url}/cgi-bin/broadbandconfig.ha'
+                data = {'nonce': Tools.Parser.get_nonce(self.bgw210.session.get(url)),
+                        'source': broadband_source_override, 'MTUW': base_mtu, 'Save': 'Save'}
+                if ipv6_mtu:
+                    data.update({'MTU6': ipv6_mtu})
+                self.bgw210.current_page = self.bgw210.session.post(url=url, data=data)
 
     class HomeNetwork:
         def __init__(self, bgw210: BGW210):
