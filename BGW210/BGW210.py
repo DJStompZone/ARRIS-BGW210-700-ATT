@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 from hashlib import md5
-from typing import List, Literal
+from typing import Literal
 
-import urllib3
 from bs4 import BeautifulSoup
 from requests import Response, Session
+from urllib3 import disable_warnings
+from urllib.parse import urlencode
 from urllib3.exceptions import InsecureRequestWarning
 
 from Exceptions import CredentialsError
 from Menus import DropdownOptions
 from tools import Tools
 
-urllib3.disable_warnings(InsecureRequestWarning)
+disable_warnings(InsecureRequestWarning)
 
 
 class Module:
@@ -52,7 +53,33 @@ class BGW210:
             self.RestartDevice = self.RestartDevice(bgw210)
 
         class Status(Module):
-            pass
+
+            def _restart(self, device: Literal['crestart', 'wrestart', 'vrestart'], url_query: int,
+                         method: str) -> None:
+                url = f'{self.bgw210.url}/cgi-bin/home.ha'
+                data = {'nonce': Tools.Parser.get_nonce(self.bgw210.session.get(url)), method: 'Restart'}
+                self.bgw210.session.post(url=f'{self.bgw210.url}/cgi-bin/{device}.ha?{url_query}', data=data)
+
+            def more_info(self) -> dict:
+                return self.bgw210.Device.SystemInformation.get_info()
+
+            def restart_broadband(self) -> None:
+                self._restart(device='crestart', url_query=1, method='Broadband')
+
+            def restart_2_4ghz_wifi(self) -> None:
+                self._restart(device='wrestart', url_query=1, method='WRestart1')
+
+            def restart_5ghz_wifi(self) -> None:
+                self._restart(device='wrestart', url_query=2, method='WRestart1')
+
+            def restart_line_1(self) -> None:
+                self._restart(device='vrestart', url_query=1, method='VRestart1')
+
+            def restart_line_2(self) -> None:
+                self._restart(device='vrestart', url_query=2, method='VRestart2')
+
+            def devices(self) -> dict:
+                return self.bgw210.Device.DeviceList.get_devices()
 
         class DeviceList(Module):
 
@@ -293,4 +320,4 @@ class BGW210:
 
 
 router = BGW210()
-router.Device.RestartDevice.restart()
+router.Device.Status.get_status()
