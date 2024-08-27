@@ -8,8 +8,8 @@ from requests import Response, Session
 from urllib3 import disable_warnings
 from urllib3.exceptions import InsecureRequestWarning
 
-from Menus import Dropdown
-from tools import Tools
+from .Menus import Dropdown
+from .tools import Tools
 
 disable_warnings(InsecureRequestWarning)
 
@@ -25,7 +25,8 @@ class BGW210:
         self.current_page = Response()
         url = f'{Tools.Network.resolve_secure()}{ip}:{port}'
         if not all([ip, port, username, password]):
-            url, username, password = Tools.Network.set_credentials()
+            config = Tools.Network.get_credentials()
+            url, username, password = [config.url, config.username, config.password]
         self.url = url
         self.username = username
         self.password = password
@@ -363,9 +364,7 @@ class BGW210:
     def login(self) -> Response:
         nonce = Tools.Parser.get_nonce(self.session.get(url=self.url, verify=False))
         data = {'nonce': nonce,
-                'username': self.username,
-                'password': ('*' * len(self.password)).encode('utf-8'),
-                'hashpassword': md5((self.password + nonce).encode('utf-8')).hexdigest(),
+                'password': self.password,
                 'Continue': 'Continue'}
         self.current_page = self.session.post(url=f'{self.url}/cgi-bin/login.ha', data=data)
         if BeautifulSoup(self.current_page.content, features="html.parser").find('title').text == 'Login':

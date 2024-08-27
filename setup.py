@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='ARRIS-BGW210-700-ATT',
-    version='',
+    version='1.1.0',
     packages=['BGW210'],
     url='',
     license='',

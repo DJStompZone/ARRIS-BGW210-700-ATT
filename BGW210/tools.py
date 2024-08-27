@@ -1,9 +1,13 @@
-from typing import Tuple
+from typing import Tuple, Union
+from traceback import print_exc, format_exc
+import os
+import json
 
 from bs4 import BeautifulSoup
 from requests import Response
 from bs4.element import ResultSet
-from Config import Config
+
+from .Config import Config, ConfigError
 
 
 class Tools:
@@ -18,17 +22,34 @@ class Tools:
                 return 'http://'
             else:
                 return 'https://'
-
+        
         @classmethod
-        def set_credentials(cls) -> Tuple[str, str, str]:
-            if True:
-                credentials = Config.BGW210.Credentials.Remote
-            else:
-                credentials = Config.BGW210.Credentials.Remote
-            return credentials.url, credentials.username, credentials.password
+        def load_credentials_from_json(cls, jsonfile) -> dict[str, str]:
+            if not os.path.isfile(jsonfile):
+                raise FileNotFoundError(f"The specified JSON file could not be loaded: {jsonfile}")
+            with open(jsonfile) as fp:
+                return json.loads(fp.read())
+        
+        @classmethod
+        def get_credentials(cls) -> Union["Config", "ConfigError"]:
+            default_credentials_path = os.path.normpath(os.path.expanduser("~/.bgw210rc.json"))
+            config_keys = _keys =  ["url", "username", "password"]
+            try:
+                _credentials = cls.load_credentials_from_json(default_credentials_path)
+                config_values = map(_credentials.get, config_keys)
+                _cfg = dict(zip(config_keys, list(config_values)))
+                if None not in config_values:
+                    return Config(**_cfg)
+                missing = list(filter(lambda k: _cfg[k] is None, _cfg))
+                raise ValueError(f"Missing required value(s) from config file: {missing}")
+            except (FileNotFoundError, KeyError, ValueError) as e:
+                tb = traceback.format_exc()
+                print(f"{e} encountered while loading saved config:")
+                print(tb)
+                return ConfigError(str(e), tb)
 
         def login_required(self) -> bool:
-            pass
+            raise NotImplementedError
 
         # if html_body.find('title').text == 'Login':
 
